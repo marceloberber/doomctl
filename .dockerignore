@@ -1,0 +1,7 @@
+.git
+.env
+bin
+.data
+certs
+docs/*.png
+*.log

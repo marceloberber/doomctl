@@ -1,0 +1,93 @@
+# doomctl — stack completa: aplicação + PostgreSQL 18 (+ Ollama opcional)
+#
+#   cp .env.example .env   (ou ./install.sh, que gera os segredos)
+#   docker compose up -d --build
+#   docker compose --profile ai up -d          # inclui o Ollama em container
+#   ./install.sh --with-ai --gpu=1             # Ollama em container com GPU (NVIDIA/AMD)
+#
+name: doomctl
+
+services:
+  postgres:
+    image: postgres:18-trixie
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: doomctl
+      POSTGRES_USER: doomctl
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
+      TZ: ${TZ:-America/Sao_Paulo}
+    volumes:
+      # PostgreSQL 18: o volume vai em /var/lib/postgresql (PGDATA = /var/lib/postgresql/18/docker)
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U doomctl -d doomctl"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    shm_size: 256mb
+    networks: [backend]
+
+  doomctl:
+    build:
+      context: .
+      args:
+        VERSION: ${DOOMCTL_VERSION:-0.1.0}
+    image: doomctl:${DOOMCTL_VERSION:-0.1.0}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DOOMCTL_DATABASE_URL: postgres://doomctl:${POSTGRES_PASSWORD}@postgres:5432/doomctl?sslmode=disable
+      DOOMCTL_SECRET_KEY: ${DOOMCTL_SECRET_KEY:?defina DOOMCTL_SECRET_KEY no .env (openssl rand -base64 32)}
+      DOOMCTL_ADMIN_USER: ${DOOMCTL_ADMIN_USER:-admin}
+      DOOMCTL_ADMIN_PASSWORD: ${DOOMCTL_ADMIN_PASSWORD:-}
+      DOOMCTL_TLS_MODE: ${DOOMCTL_TLS_MODE:-self-signed}
+      DOOMCTL_TLS_CERT: ${DOOMCTL_TLS_CERT:-}
+      DOOMCTL_TLS_KEY: ${DOOMCTL_TLS_KEY:-}
+      DOOMCTL_SESSION_TTL: ${DOOMCTL_SESSION_TTL:-12h}
+      DOOMCTL_MAX_JOBS: ${DOOMCTL_MAX_JOBS:-4}
+      DOOMCTL_PORTAINER_IMAGE: ${DOOMCTL_PORTAINER_IMAGE:-portainer/portainer-ce:lts}
+      DOOMCTL_PORTAINER_PORT: ${DOOMCTL_PORTAINER_PORT:-9443}
+      OLLAMA_HOST: ${OLLAMA_HOST:-http://ollama:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3.8}
+      ROUTER_TEMPERATURE: ${ROUTER_TEMPERATURE:-0.25}
+      DOOMCTL_AI_GPU: ${DOOMCTL_AI_GPU:-}
+      TZ: ${TZ:-America/Sao_Paulo}
+    ports:
+      - "${DOOMCTL_BIND:-0.0.0.0}:${DOOMCTL_PORT:-8443}:8443"
+    volumes:
+      - doomctl-data:/var/lib/doomctl
+      # Socket do Docker: necessário para docker login, scan de imagens locais (Trivy) e o plug-in Portainer.
+      # ATENÇÃO: acesso ao socket equivale a root no host. Remova a linha se não usar esses recursos.
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Certificado próprio (DOOMCTL_TLS_MODE=files):
+      # - ./certs:/certs:ro
+    group_add:
+      - "${DOCKER_GID:-999}"   # GID do grupo docker no host (stat -c %g /var/run/docker.sock)
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # Ollama rodando no próprio host
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    networks: [backend, frontend]
+
+  ollama:
+    image: ollama/ollama:${OLLAMA_IMAGE_TAG:-latest}
+    profiles: [ai]
+    restart: unless-stopped
+    volumes:
+      - ollama:/root/.ollama
+    networks: [frontend]
+    # GPU: ./install.sh --with-ai --gpu=1 (ou --gpu=0) grava COMPOSE_FILE no .env e
+    # acrescenta docker-compose.gpu-nvidia.yml ou docker-compose.gpu-amd.yml.
+
+networks:
+  backend:
+    internal: true   # PostgreSQL sem acesso externo
+  frontend: {}
+
+volumes:
+  pgdata:
+  doomctl-data:
+  ollama:

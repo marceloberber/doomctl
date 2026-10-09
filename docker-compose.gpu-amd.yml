@@ -1,0 +1,9 @@
+# doomctl — GPU AMD (ROCm) para o Ollama em container (perfil ai).
+# Ativado pelo ./install.sh --with-ai --gpu=amd (ou --gpu=1 quando só há GPU AMD).
+# Requer o driver amdgpu/ROCm no host (/dev/kfd e /dev/dri).
+services:
+  ollama:
+    image: ollama/ollama:${OLLAMA_ROCM_TAG:-rocm}
+    devices:
+      - /dev/kfd
+      - /dev/dri

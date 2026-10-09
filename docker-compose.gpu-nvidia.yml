@@ -1,0 +1,13 @@
+# doomctl — GPU NVIDIA para o Ollama em container (perfil ai).
+# Ativado pelo ./install.sh --with-ai --gpu=1 (grava COMPOSE_FILE no .env).
+# Requer driver NVIDIA + NVIDIA Container Toolkit no host:
+#   sudo nvidia-ctk runtime configure --runtime=docker && sudo systemctl restart docker
+services:
+  ollama:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
