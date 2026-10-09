@@ -17,6 +17,8 @@
   <a href="#-segurança">Segurança</a>
 </p>
 
+> [!WARNING]
+> **Projeto 100% vibe coded apenas para estudos e testes. Utilize para fins educacionais!**
 ---
 
 O **doomctl** é uma plataforma web para rodar na sua LAN (o *doomctl master*) que gera e executa artefatos de infraestrutura — Dockerfiles, docker-compose, projetos OpenTofu, manifests Kubernetes — além de FinOps para AWS e OCI, calculadora de sub-redes, scans com Trivy e um assistente de IA local que roteia cada pergunta para o especialista certo. Interface responsiva (desktop e mobile), tema claro/escuro, perfis de acesso por módulo e MFA.
